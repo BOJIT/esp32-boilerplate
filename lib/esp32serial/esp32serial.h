@@ -1,19 +1,14 @@
 /**
  * @file
- * @brief headers for FreeRTOS-Debug library
+ * @brief headers for esp32serial library
  *
- * @author @htmlonly &copy; @endhtmlonly 2020 James Bennion-Pedley
+ * @author @htmlonly &copy; @endhtmlonly 2021 James Bennion-Pedley
  *
- * @date 20 September 2020
+ * @date 09 June 2021
  */
 
-#ifndef __FREERTOS_DEBUG__
-#define __FREERTOS_DEBUG__
-
-/* C++ Compatibility Guard */
-#ifdef __cplusplus
-extern "C" {
-#endif /* __cplusplus */
+#ifndef __ESP32SERIAL__
+#define __ESP32SERIAL__
 
 #include <stdlib.h>
 #include <stdbool.h>
@@ -25,10 +20,9 @@ extern "C" {
 
 /** @brief Debug Levels */
 #define DEBUG_OFF       0
-#define DEBUG_MINIMAL   1
-#define DEBUG_ERRORS    2
-#define DEBUG_WARNINGS  3
-#define DEBUG_FULL      4
+#define DEBUG_ERRORS    1
+#define DEBUG_WARNINGS  2
+#define DEBUG_INFO      3
 
 /** @brief Debug Types */
 #define DEBUG_TYPE_INFO     'I'
@@ -71,11 +65,13 @@ void debug_send_message(debug_t debug);
             debug_t debug; \
             if(debug_check_level(debug_type)) { \
                 debug.type = debug_type; \
-                debug.message = (char*)pvPortMalloc(snprintf(NULL, 0, __VA_ARGS__)); \
-                sprintf(debug.message, __VA_ARGS__); \
+                debug.message = NULL; \
                 debug_send_message(debug); \
             } \
         } while(0)
+
+        // (char*)pvPortMalloc(snprintf(NULL, 0, __VA_ARGS__));
+        // sprintf(debug.message, __VA_ARGS__);
 #else
     #define DEBUG_MESSAGE(debug_type, message)
 #endif /* DEBUG_LEVEL >= DEBUG_ERRORS */
@@ -99,18 +95,4 @@ void debug_send_message(debug_t debug);
 TaskHandle_t* debugInitialise(size_t queue_length, void (*init_func)(void),
                                                     void (*send_func)(char));
 
-/**
- * @brief Suspend all tasks and halt everything for debugging.
- */
-void debugFreeze(void);
-
-/**
- * @brief Suspend the calling task for debugging.
- */
-void debugFreezeTask(void);
-
-#ifdef __cplusplus
-}
-#endif /* __cplusplus */
-
-#endif /* __FREERTOS_DEBUG__ */
+#endif /* __ESP32SERIAL__ */

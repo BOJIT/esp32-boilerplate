@@ -3,6 +3,6 @@
 
 #include <Arduino.h>
 
-// #include <FreeRTOS-Debug.h>
+#include <esp32-serial.h>
 
 void sensingTask(void *args __attribute((unused)));

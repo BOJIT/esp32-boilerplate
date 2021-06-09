@@ -1,15 +1,39 @@
 /**
  * @file
- * @brief functions for FreeRTOS-Debug library
+ * @brief Functions for esp32-serial library
  *
- * @author @htmlonly &copy; @endhtmlonly 2020 James Bennion-Pedley
+ * @author @htmlonly &copy; @endhtmlonly 2021 James Bennion-Pedley
  *
- * @date 20 September 2020
+ * @date 09 June 2021
  */
 
-#include "FreeRTOS-Debug.h"
+#include "esp32serial.h"
+
+# include <Arduino.h>
 
 #include "freertos/queue.h"
+
+class Esp32Serial {
+private:
+    static QueueHandle_t debugQueue;
+
+    
+
+public:
+    TaskHandle_t debugTask;
+
+    Esp32Serial(const uint baud, size_t queue_length = 10, bool colour = false)
+    {
+        /* Initialise message queue */
+        debugQueue = xQueueCreate(queue_length, sizeof(debug_t));
+
+        /* Create debug task and pass handle back to the user application */
+        //xTaskCreate(debug_handler, "debug", 8192, NULL, 1, &debug_task);
+    }
+};
+
+
+//////////////////////OLD IMPLEMENTATION!!!/////////////////////////////////////
 
 /*----------------------------- Global Variables -----------------------------*/
 
@@ -79,7 +103,7 @@ static void (*global_send_func)(char);
                 {
                     debug.task_handle = debug_task;
                     char full_message[] = "Queue Full!\n"; // @todo note that this does not actually copy the message into the buffer!!!
-                    queue_full.message = pvPortMalloc(sizeof(full_message));
+                    queue_full.message = (char*)pvPortMalloc(sizeof(full_message));
                     xQueueSend(debug_queue, &queue_full, 0);
                     break;
                 }
@@ -108,6 +132,7 @@ static void (*global_send_func)(char);
             xQueueReceive(debug_queue, &debug_next, portMAX_DELAY);
 
             /* Print debug type and calling task */
+            Serial.write("\u001b[31m");
             global_send_func(debug_next.type);
             global_send_func(' ');
             global_send_func('-');
@@ -124,19 +149,18 @@ static void (*global_send_func)(char);
             global_send_func(' ');
 
             /* Write out message */
-            char* message_ptr = debug_next.message;
-            while(*message_ptr != '\0') {
-                /* Print Character to debug console */
-                global_send_func(*message_ptr);
+            // char* message_ptr = debug_next.message;
+            // while(*message_ptr != '\0') {
+            //     /* Print Character to debug console */
+            //     global_send_func(*message_ptr);
 
-                message_ptr++;
-            }
+            //     message_ptr++;
+            // }
             global_send_func('\n');
-
-            vTaskDelay(100);
+            Serial.write("\u001b[0m");
 
             /* Free the memory allocated to the message string */
-            vPortFree(message_ptr);
+            //vPortFree(message_ptr);
         }
     }
 #endif /* DEBUG_LEVEL >= DEBUG_ERRORS */
@@ -178,24 +202,4 @@ TaskHandle_t* debugInitialise(size_t queue_length, void (*init_func)(void),
         (void)(queue_length);
     #endif /* DEBUG_LEVEL >= DEBUG_ERRORS */
     return &debug_task;
-}
-
-/**
- * @brief Suspend all tasks and halt everything for debugging.
- */
-void debugFreeze(void)
-{
-    #if DEBUG_LEVEL >= DEBUG_FULL
-        vTaskSuspendAll();
-    #endif /* DEBUG_LEVEL >= DEBUG_FULL */
-}
-
-/**
- * @brief Suspend the calling task for debugging.
- */
-void debugFreezeTask(void)
-{
-    #if DEBUG_LEVEL >= DEBUG_ERRORS
-        vTaskSuspend((TaskHandle_t)NULL);
-    #endif /* DEBUG_LEVEL >= DEBUG_ERRORS */
 }
