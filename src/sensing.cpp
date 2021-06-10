@@ -3,6 +3,7 @@
 
 void sensingTask(void *args __attribute((unused)))
 {
+    // Set up block capture from ADC
 
     for(;;)
     {
