@@ -7,15 +7,8 @@ void sensingTask(void *args __attribute((unused)))
     for(;;)
     {
 
+        esp32serial.info("Printf - Debug %d", 20);
 
-        // Serial.write("\u001b[32m");
-        // Serial.println("Hello World!");
-        // Serial.write("\u001b[0m");
-
-        esp32serial.warning("No %d", 10);
-
-        esp32serial.error("Enter");
-
-        vTaskDelay(2000 / portTICK_PERIOD_MS);
+        vTaskDelay(200 / portTICK_PERIOD_MS);
     }
 }

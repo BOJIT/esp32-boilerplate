@@ -62,7 +62,7 @@ private:
 
     void _debugHandler(void *q);
 
-    int _debugSend(int code, char colour[2], va_list args);
+    int _debugSend(int type, char colour[2], const char* format, va_list args);
 
 public:
     TaskHandle_t debugTask;
@@ -70,9 +70,9 @@ public:
     Esp32Serial(const uint baud, size_t queue_length = 10, bool colour = false);
     ~Esp32Serial(void);
 
-    int info(...);
-    int warning(...);
-    int error(...);
+    int info(const char* format, ...);
+    int warning(const char* format, ...);
+    int error(const char* format, ...);
 };
 
 /* External declaration - optional, but is convenientway to log in >1 c files */

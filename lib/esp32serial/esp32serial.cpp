@@ -54,15 +54,20 @@ void Esp32Serial::_debugHandler(void *q)
         char* task_ptr = pcTaskGetTaskName(debug.task);
         Serial.print(task_ptr);
         Serial.print(DEBUG_DELIMITER);
-        Serial.println("Hello World");
+
+        /* Print message */
+        Serial.print(debug.message);
+        vPortFree(debug.message);
 
         #if DEBUG_COLOUR
             Serial.write(DEBUG_COLOUR_RESET);
         #endif
+
+        Serial.println();
     }
 }
 
-int Esp32Serial::_debugSend(int type, char colour[2], va_list args)
+int Esp32Serial::_debugSend(int type, char colour[2], const char* format, va_list args)
 {
     int err;
     debug_t debug;
@@ -79,12 +84,23 @@ int Esp32Serial::_debugSend(int type, char colour[2], va_list args)
         case 1:
         {
             debug.task = debugTask;
+
+            /* Warn if queue has only one space left */
+            char full_message[] = "Queue Full!";
+            debug.message = (char*)pvPortMalloc(sizeof(full_message));
+            strcpy(debug.message, full_message);
+
             xQueueSend(_debugQueue, &debug, 0);
             err = -1;
             break;
         }
         default:
             debug.task = xTaskGetCurrentTaskHandle();
+
+            size_t len = vsnprintf(NULL, 0, format, args) + 1;
+            debug.message = (char*)pvPortMalloc(len);
+            vsnprintf(debug.message, len, format, args);
+
             xQueueSend(_debugQueue, &debug, 0);
             err = 0;
             break;
@@ -105,7 +121,7 @@ Esp32Serial::Esp32Serial(const uint baud, size_t queue_length, bool colour)
     _debugQueue = xQueueCreate(queue_length, sizeof(debug_t));
 
     /* Create debug task and pass handle back to the user application */
-    xTaskCreate(_debugWrapper, "debug", 8192, _debugQueue, 1, &debugTask);
+    xTaskCreate(_debugWrapper, "debug", 2048, _debugQueue, 1, &debugTask);
 }
 
 Esp32Serial::~Esp32Serial(void)
@@ -119,34 +135,34 @@ Esp32Serial::~Esp32Serial(void)
     Serial.end();
 }
 
-int Esp32Serial::info(...)
+int Esp32Serial::info(const char* format, ...)
 {
     #if DEBUG_LEVEL >= DEBUG_INFO
         va_list arglist;
         char colour[] = DEBUG_COLOUR_INFO;
-        return _debugSend(DEBUG_TYPE_INFO, colour, arglist);
+        return _debugSend(DEBUG_TYPE_INFO, colour, format, arglist);
     #else
         return 0;
     #endif
 }
 
-int Esp32Serial::warning(...)
+int Esp32Serial::warning(const char* format, ...)
 {
     #if DEBUG_LEVEL >= DEBUG_WARNING
         va_list arglist;
         char colour[] = DEBUG_COLOUR_WARNINGS;
-        return _debugSend(DEBUG_TYPE_WARNINGS, colour, arglist);
+        return _debugSend(DEBUG_TYPE_WARNINGS, colour, format, arglist);
     #else
         return 0;
     #endif
 }
 
-int Esp32Serial::error(...)
+int Esp32Serial::error(const char* format, ...)
 {
     #if DEBUG_LEVEL >= DEBUG_ERROR
         va_list arglist;
         char colour[] = DEBUG_COLOUR_ERRORS;
-        return _debugSend(DEBUG_TYPE_ERRORS, colour, arglist);
+        return _debugSend(DEBUG_TYPE_ERRORS, colour, format, arglist);
     #else
         return 0;
     #endif
