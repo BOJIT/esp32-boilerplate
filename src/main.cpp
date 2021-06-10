@@ -1,18 +1,10 @@
 #include "main.h"
 
-// Debugging Wrappers
-void serial_init(void)
-{
-    Serial.begin(115200);
-}
-void serial_send(char c)
-{
-    Serial.write(c);
-}
+Esp32Serial log(115200);
 
 void setup()
 {
-    debugInitialise(10, serial_init, serial_send);
+    log.info('Hello World');
     // Serial.begin(115200);
     // Serial.write("\u001b[31m");
     // Serial.println("Hello World!");

@@ -3,6 +3,8 @@
 
 #include <Arduino.h>
 
-#include <esp32-serial.h>
+#include <esp32serial.h>
+
+extern Esp32Serial log;
 
 void sensingTask(void *args __attribute((unused)));

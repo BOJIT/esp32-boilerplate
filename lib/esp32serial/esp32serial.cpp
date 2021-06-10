@@ -11,195 +11,90 @@
 
 # include <Arduino.h>
 
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 #include "freertos/queue.h"
 
-class Esp32Serial {
-private:
-    static QueueHandle_t debugQueue;
+/*------------------------ Private Macros and Structs ------------------------*/
 
-    
+/** @brief Debug Types */
+#define DEBUG_TYPE_INFO     'I'
+#define DEBUG_TYPE_WARNING  'W'
+#define DEBUG_TYPE_ERROR    'E'
 
-public:
-    TaskHandle_t debugTask;
-
-    Esp32Serial(const uint baud, size_t queue_length = 10, bool colour = false)
-    {
-        /* Initialise message queue */
-        debugQueue = xQueueCreate(queue_length, sizeof(debug_t));
-
-        /* Create debug task and pass handle back to the user application */
-        //xTaskCreate(debug_handler, "debug", 8192, NULL, 1, &debug_task);
-    }
-};
-
-
-//////////////////////OLD IMPLEMENTATION!!!/////////////////////////////////////
-
-/*----------------------------- Global Variables -----------------------------*/
-
-/** @brief Task handle of the debug task */
-static TaskHandle_t debug_task;
-
-#if DEBUG_LEVEL >= DEBUG_ERRORS
-    /**
-     * @brief This message is added to the queue if
-     * there is only one space left.
-     */
-    static debug_t queue_full;
-
-    /** @brief The queue itself */
-    static QueueHandle_t debug_queue;
-
-#endif /* DEBUG_LEVEL >= DEBUG_ERRORS */
-
-/**
- * @brief Function pointer for the debug hardware initialisation function.
- */
-static void (*global_init_func)(void);
-
-/**
- * @brief Function pointer for actual debug character write.
- * This is a global variable as a function pointer cannot easily
- * be passed to a task.
- */
-static void (*global_send_func)(char);
+/** @brief Debug struct that is added to the message queue */
+typedef struct {
+    char type;
+    TaskHandle_t task_handle;
+    char* message;
+} debug_t;
 
 /*----------------------------- Private Functions ----------------------------*/
 
-#if DEBUG_LEVEL >= DEBUG_ERRORS
+void Esp32Serial::_debugHandler(void *args __attribute((unused)))
+{
 
-    /**
-     * @brief Internal function used to allocate memory for the error string.
-     * @param debug_type level of debugging (handled by preprocessor).
-     *
-     * @retval true if message should be logged, false if not.
-     */
-    bool debug_check_level(char debug_type) {
-        switch(debug_type) {
-            #if DEBUG_LEVEL >= DEBUG_FULL
-                case DEBUG_TYPE_INFO:
-            #endif /* DEBUG_LEVEL >= DEBUG_FULL */
-            #if DEBUG_LEVEL >= DEBUG_WARNINGS
-                case DEBUG_TYPE_WARNING:
-            #endif /* DEBUG_LEVEL >= DEBUG_WARNINGS */
-            case DEBUG_TYPE_ERROR:
-                return true;
-            default:
-                return false;
-        }
-    }
+}
 
-    /**
-     * @brief Internal function used add debug message to the queue.
-     * @param debug_type debug message type - see Debug Types.
-     * @param length length of message passed in printf-style message.
-     */
-    void debug_send_message(debug_t debug)
-    {
-        switch(uxQueueSpacesAvailable(debug_queue)) {
-            case 0:
-                break;
-            case 1:
-                {
-                    debug.task_handle = debug_task;
-                    char full_message[] = "Queue Full!\n"; // @todo note that this does not actually copy the message into the buffer!!!
-                    queue_full.message = (char*)pvPortMalloc(sizeof(full_message));
-                    xQueueSend(debug_queue, &queue_full, 0);
-                    break;
-                }
-            default:
-                debug.task_handle = xTaskGetCurrentTaskHandle();
-                xQueueSend(debug_queue, &debug, 0);
-                break;
-        }
-    }
+int _debugSend(int type, va_list args)
+{
 
-    /**
-     * @brief Task that handles actually sending the messages in a multi-threaded
-     * environment.
-     * @param args unused.
-     */
-    static void debug_handler(void *args __attribute((unused)))
-    {
-        /*
-         * Calling the initialisation function here ensures the scheduler is
-         * running in case an interrupt fires immediately.
-         */
-        global_init_func();
-        for(;;) {
-            /* Block until there is an item in the queue */
-            debug_t debug_next;
-            xQueueReceive(debug_queue, &debug_next, portMAX_DELAY);
-
-            /* Print debug type and calling task */
-            Serial.write("\u001b[31m");
-            global_send_func(debug_next.type);
-            global_send_func(' ');
-            global_send_func('-');
-            global_send_func(' ');
-            char* task_ptr = pcTaskGetTaskName(debug_next.task_handle);
-            while(*task_ptr != '\0') {
-                /* Print Character to debug console */
-                global_send_func(*task_ptr);
-
-                task_ptr++;
-            }
-            global_send_func(' ');
-            global_send_func('-');
-            global_send_func(' ');
-
-            /* Write out message */
-            // char* message_ptr = debug_next.message;
-            // while(*message_ptr != '\0') {
-            //     /* Print Character to debug console */
-            //     global_send_func(*message_ptr);
-
-            //     message_ptr++;
-            // }
-            global_send_func('\n');
-            Serial.write("\u001b[0m");
-
-            /* Free the memory allocated to the message string */
-            //vPortFree(message_ptr);
-        }
-    }
-#endif /* DEBUG_LEVEL >= DEBUG_ERRORS */
+}
 
 /*------------------------------ Public Functions ----------------------------*/
 
-/**
- * @brief Initialise the queues and tasks associated with the debug handler.
- * @param queue_length defines the length of the message queue. While the a long
- * message queue does not use up much memory, the dynamically allocated message
- * strings that the queue items point to do. Keep as low as possible.
- * @param init_func function pointer to a function that initialises the output
- * means that send_func uses to do the logging.
- * @param send_func function pointer to a function that sends one char in a
- * non-blocking manner.
- * @param reset_func function pointer to system reset function.
- *
- * @retval pointer to handle of the task that was created to handle debugging.
- */
-TaskHandle_t* debugInitialise(size_t queue_length, void (*init_func)(void),
-                                                    void (*send_func)(char))
+Esp32Serial::Esp32Serial(const uint baud, size_t queue_length, bool colour)
 {
-    /* Call passed initialisation function and assign the fptrs */
-    global_init_func = init_func;
-    global_send_func = send_func;
-    #if DEBUG_LEVEL >= DEBUG_ERRORS
+    /* Initialise Serial communication */
+    Serial.begin(baud);
 
-        /* Initialise message queue */
-        debug_queue = xQueueCreate(queue_length, sizeof(debug_t));
+    /* Configure colour settings */
+    _colour = colour;
 
-        /* Create debug task and pass handle back to the user application */
-        xTaskCreate(debug_handler, "debug", 8192, NULL, 1, &debug_task);
+    /* Initialise message queue */
+    _debugQueue = xQueueCreate(queue_length, sizeof(debug_t));
 
-        /* Populate 'Queue Full' message partially */
-        queue_full.type = DEBUG_TYPE_ERROR;
-        queue_full.task_handle = debug_task;
+    /* Create debug task and pass handle back to the user application */
+    xTaskCreate(_debugWrapper, "debug", 8192, NULL, 1, &debugTask);
+}
+
+Esp32Serial::~Esp32Serial(void)
+{
+    // TODO free entire queue messages
+
+    vQueueDelete(_debugQueue);
+
+    vTaskDelete(debugTask);
+
+    Serial.end();
+}
+
+int Esp32Serial::info(...)
+{
+    #if DEBUG_LEVEL >= DEBUG_INFO
+        va_list arglist;
+        return _debugSend(DEBUG_TYPE_INFO, arglist);
     #else
-        /* Suppresses unused variable warning */
-        (void)(queue_length);
-    #endif /* DEBUG_LEVEL >= DEBUG_ERRORS */
-    return &debug_task;
+        return 0;
+    #endif
+}
+
+int Esp32Serial::warning(...)
+{
+    #if DEBUG_LEVEL >= DEBUG_WARNING
+        va_list arglist;
+        return _debugSend(DEBUG_TYPE_WARNING, arglist);
+    #else
+        return 0;
+    #endif
+}
+
+int Esp32Serial::error(...)
+{
+    #if DEBUG_LEVEL >= DEBUG_ERROR
+        va_list arglist;
+        return _debugSend(DEBUG_TYPE_ERROR, arglist);
+    #else
+        return 0;
+    #endif
 }
