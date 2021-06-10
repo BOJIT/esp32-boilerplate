@@ -7,7 +7,7 @@ void sensingTask(void *args __attribute((unused)))
     for(;;)
     {
 
-        esp32serial.info("Printf - Debug %d", 20);
+        esp32serial.info("Printf - Debug %u", 526);
 
         vTaskDelay(200 / portTICK_PERIOD_MS);
     }

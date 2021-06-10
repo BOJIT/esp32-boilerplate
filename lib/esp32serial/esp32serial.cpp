@@ -97,7 +97,9 @@ int Esp32Serial::_debugSend(int type, char colour[2], const char* format, va_lis
         default:
             debug.task = xTaskGetCurrentTaskHandle();
 
+            //Serial.println("testln");
             size_t len = vsnprintf(NULL, 0, format, args) + 1;
+            //Serial.println(len);
             debug.message = (char*)pvPortMalloc(len);
             vsnprintf(debug.message, len, format, args);
 
@@ -138,9 +140,12 @@ Esp32Serial::~Esp32Serial(void)
 int Esp32Serial::info(const char* format, ...)
 {
     #if DEBUG_LEVEL >= DEBUG_INFO
-        va_list arglist;
+        va_list args;
+        va_start(args, format);
         char colour[] = DEBUG_COLOUR_INFO;
-        return _debugSend(DEBUG_TYPE_INFO, colour, format, arglist);
+        int err = _debugSend(DEBUG_TYPE_INFO, colour, format, args);
+        va_end(args);
+        return err;
     #else
         return 0;
     #endif
@@ -149,9 +154,12 @@ int Esp32Serial::info(const char* format, ...)
 int Esp32Serial::warning(const char* format, ...)
 {
     #if DEBUG_LEVEL >= DEBUG_WARNING
-        va_list arglist;
+        va_list args;
+        va_start(args, format);
         char colour[] = DEBUG_COLOUR_WARNINGS;
-        return _debugSend(DEBUG_TYPE_WARNINGS, colour, format, arglist);
+        int err = _debugSend(DEBUG_TYPE_WARNINGS, colour, format, args);
+        va_end(args);
+        return err;
     #else
         return 0;
     #endif
@@ -160,9 +168,12 @@ int Esp32Serial::warning(const char* format, ...)
 int Esp32Serial::error(const char* format, ...)
 {
     #if DEBUG_LEVEL >= DEBUG_ERROR
-        va_list arglist;
+        va_list args;
+        va_start(args, format);
         char colour[] = DEBUG_COLOUR_ERRORS;
-        return _debugSend(DEBUG_TYPE_ERRORS, colour, format, arglist);
+        int err = _debugSend(DEBUG_TYPE_ERRORS, colour, format, args);
+        va_end(args);
+        return err;
     #else
         return 0;
     #endif
