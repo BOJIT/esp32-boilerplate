@@ -6,7 +6,7 @@ void sensingTask(void *args __attribute((unused)))
 
     for(;;){
 
-        log.warning('No %d', 10);
+        esp32serial.warning("No %d", 10);
 
         vTaskDelay(2000 / portTICK_PERIOD_MS);
     }

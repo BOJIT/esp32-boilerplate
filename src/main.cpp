@@ -1,10 +1,10 @@
 #include "main.h"
 
-Esp32Serial log(115200);
+Esp32Serial esp32serial(115200);
 
 void setup()
 {
-    log.info('Hello World');
+    esp32serial.info("Hello World");
     // Serial.begin(115200);
     // Serial.write("\u001b[31m");
     // Serial.println("Hello World!");
