@@ -37,9 +37,12 @@
     #define DEBUG_COLOUR_ERRORS "31"
 #endif
 
-/** @brief Set default debug level to full and colour to on */
+/** @brief Set defaults (can be overridden by platformio.ini file) */
 #ifndef DEBUG_LEVEL
     #define DEBUG_LEVEL DEBUG_INFO
+#endif
+#ifndef DEBUG_DELIMITER
+    #define DEBUG_DELIMITER " - "
 #endif
 #ifndef DEBUG_COLOUR
     #define DEBUG_COLOUR 1
@@ -53,11 +56,11 @@ class Esp32Serial {
 private:
     QueueHandle_t _debugQueue;
 
-    void _debugHandler(void *args __attribute((unused)));
-
-    static void _debugWrapper(void* param) {
-        static_cast<Esp32Serial*>(param)->_debugHandler(param);
+    static void _debugWrapper(void* q) {
+        static_cast<Esp32Serial*>(q)->_debugHandler(q);
     }
+
+    void _debugHandler(void *q);
 
     int _debugSend(int code, char colour[2], va_list args);
 

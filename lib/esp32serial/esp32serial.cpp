@@ -30,31 +30,35 @@ typedef struct {
 } debug_t;
 
 
-//temp
-QueueHandle_t dbgq;
-
 /*------------------------------ Private Methods -----------------------------*/
 
 
-void Esp32Serial::_debugHandler(void *args __attribute((unused)))
+void Esp32Serial::_debugHandler(void *q)
 {
     debug_t debug;
 
     for(;;) {
-        if(dbgq == 0) {
-            Serial.println("NULLLL");
-        }
-        // char buffer[30];
-        // sprintf(buffer, "%p\n", (void*)_debugQueue);
-        // Serial.print(buffer);
-        // Serial.println("Hey");
-        // vTaskDelay(1000);
         /* Block until there is an item in the queue */
-        xQueueReceive(dbgq, &debug, portMAX_DELAY);
+        xQueueReceive(q, &debug, portMAX_DELAY);
 
-        Serial.println(debug.type);
+        #if DEBUG_COLOUR
+            Serial.write(DEBUG_COLOUR_PREFIX);
+            Serial.write(debug.colour, 2);
+            Serial.write(DEBUG_COLOUR_SUFFIX);
+        #endif
 
-        // vTaskDelay(1000);
+
+        /* Print Type header and task name */
+        Serial.print(debug.type);
+        Serial.print(DEBUG_DELIMITER);
+        char* task_ptr = pcTaskGetTaskName(debug.task);
+        Serial.print(task_ptr);
+        Serial.print(DEBUG_DELIMITER);
+        Serial.println("Hello World");
+
+        #if DEBUG_COLOUR
+            Serial.write(DEBUG_COLOUR_RESET);
+        #endif
     }
 }
 
@@ -68,22 +72,20 @@ int Esp32Serial::_debugSend(int type, char colour[2], va_list args)
     debug.colour[0] = colour[0];
     debug.colour[1] = colour[1];
 
-    Serial.println(uxQueueSpacesAvailable(dbgq));
-
-    switch(uxQueueSpacesAvailable(dbgq)) {
+    switch(uxQueueSpacesAvailable(_debugQueue)) {
         case 0:
             err = -2;
             break;
         case 1:
         {
             debug.task = debugTask;
-            xQueueSend(dbgq, &debug, 0);
+            xQueueSend(_debugQueue, &debug, 0);
             err = -1;
             break;
         }
         default:
             debug.task = xTaskGetCurrentTaskHandle();
-            xQueueSend(dbgq, &debug, 0);
+            xQueueSend(_debugQueue, &debug, 0);
             err = 0;
             break;
     }
@@ -100,10 +102,10 @@ Esp32Serial::Esp32Serial(const uint baud, size_t queue_length, bool colour)
     Serial.begin(baud);
 
     /* Initialise message queue */
-    dbgq = xQueueCreate(queue_length, sizeof(debug_t));
+    _debugQueue = xQueueCreate(queue_length, sizeof(debug_t));
 
     /* Create debug task and pass handle back to the user application */
-    xTaskCreate(_debugWrapper, "debug", 8192, NULL, 1, &debugTask);
+    xTaskCreate(_debugWrapper, "debug", 8192, _debugQueue, 1, &debugTask);
 }
 
 Esp32Serial::~Esp32Serial(void)
@@ -132,7 +134,7 @@ int Esp32Serial::warning(...)
 {
     #if DEBUG_LEVEL >= DEBUG_WARNING
         va_list arglist;
-        char colour[] = DEBUG_COLOUR_INFO;
+        char colour[] = DEBUG_COLOUR_WARNINGS;
         return _debugSend(DEBUG_TYPE_WARNINGS, colour, arglist);
     #else
         return 0;
@@ -143,7 +145,7 @@ int Esp32Serial::error(...)
 {
     #if DEBUG_LEVEL >= DEBUG_ERROR
         va_list arglist;
-        char colour[] = DEBUG_COLOUR_INFO;
+        char colour[] = DEBUG_COLOUR_ERRORS;
         return _debugSend(DEBUG_TYPE_ERRORS, colour, arglist);
     #else
         return 0;
